@@ -58,9 +58,48 @@ if [ -f /etc/os-release ]; then
 fi
 
 #-----------------------------
-# Step 1: 檢查並安裝 Docker
+# Step 1: 設定時間同步
 #-----------------------------
-cecho "Step 1: 檢查 Docker 環境"
+cecho "Step 1: 設定系統時間同步"
+
+# 設定時區為 Asia/Taipei
+if [ -f /etc/timezone ]; then
+  CURRENT_TZ=$(cat /etc/timezone)
+  if [ "$CURRENT_TZ" != "Asia/Taipei" ]; then
+    cecho "設定時區為 Asia/Taipei..."
+    timedatectl set-timezone Asia/Taipei
+  else
+    cecho "時區已設定為 Asia/Taipei"
+  fi
+else
+  cecho "設定時區為 Asia/Taipei..."
+  timedatectl set-timezone Asia/Taipei
+fi
+
+# 配置 systemd-timesyncd
+cecho "配置 NTP 時間同步服務..."
+cat > /etc/systemd/timesyncd.conf <<EOF
+[Time]
+NTP=tock.stdtime.gov.tw time.stdtime.gov.tw
+FallbackNTP=time.google.com time.cloudflare.com
+EOF
+
+# 重啟並啟用時間同步服務
+systemctl restart systemd-timesyncd
+systemctl enable systemd-timesyncd
+
+# 啟用 NTP 同步
+timedatectl set-ntp true
+
+# 顯示時間同步狀態
+sleep 2
+cecho "時間同步狀態:"
+timedatectl status | grep -E "Local time|System clock synchronized|NTP service"
+
+#-----------------------------
+# Step 2: 檢查並安裝 Docker
+#-----------------------------
+cecho "Step 2: 檢查 Docker 環境"
 if ! command -v docker &> /dev/null; then
   wecho "Docker 未安裝，開始安裝..."
 
@@ -98,16 +137,16 @@ else
 fi
 
 #-----------------------------
-# Step 2: 準備部署目錄
+# Step 3: 準備部署目錄
 #-----------------------------
-cecho "Step 2: 準備部署目錄"
+cecho "Step 3: 準備部署目錄"
 mkdir -p "$DEPLOY_DIR"
 cd "$DEPLOY_DIR"
 
 #-----------------------------
-# Step 3: 下載或更新代碼
+# Step 4: 下載或更新代碼
 #-----------------------------
-cecho "Step 3: 取得部署檔案"
+cecho "Step 4: 取得部署檔案"
 if [ -d ".git" ]; then
   cecho "更新現有 repository..."
   git pull origin main
@@ -117,40 +156,40 @@ else
 fi
 
 #-----------------------------
-# Step 4: 建立資料目錄
+# Step 5: 建立資料目錄
 #-----------------------------
-cecho "Step 4: 建立資料目錄"
+cecho "Step 5: 建立資料目錄"
 mkdir -p "$DEPLOY_DIR/grafana-data"
 mkdir -p "$DEPLOY_DIR/influxdb-data"
 mkdir -p "$DEPLOY_DIR/prometheus-data"
 chown -R 472:472 "$DEPLOY_DIR/grafana-data"
 
 #-----------------------------
-# Step 5: 停止舊容器（如果存在）
+# Step 6: 停止舊容器（如果存在）
 #-----------------------------
-cecho "Step 5: 清理舊容器"
+cecho "Step 6: 清理舊容器"
 if docker ps -a | grep -q grafana; then
   wecho "發現舊容器，正在停止並移除..."
   docker compose -f docker-compose.yml down
 fi
 
 #-----------------------------
-# Step 6: 下載映像檔並啟動服務
+# Step 7: 下載映像檔並啟動服務
 #-----------------------------
-cecho "Step 6: 下載並啟動服務"
+cecho "Step 7: 下載並啟動服務"
 docker compose -f docker-compose.yml pull
 docker compose -f docker-compose.yml up -d
 
 #-----------------------------
-# Step 7: 等待服務啟動
+# Step 8: 等待服務啟動
 #-----------------------------
-cecho "Step 7: 等待服務啟動..."
+cecho "Step 8: 等待服務啟動..."
 sleep 5
 
 #-----------------------------
-# Step 8: 驗證服務狀態
+# Step 9: 驗證服務狀態
 #-----------------------------
-cecho "Step 8: 驗證服務狀態"
+cecho "Step 9: 驗證服務狀態"
 CONTAINER_STATUS=$(docker compose -f docker-compose.yml ps --format json 2>/dev/null || echo "[]")
 
 if docker ps | grep -q grafana && docker ps | grep -q influxdb && docker ps | grep -q prometheus && docker ps | grep -q node_exporter; then
