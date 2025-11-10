@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 自動從 Docker Hub 下載並部署 Grafana
+# 自動從 Docker Hub 下載並部署 Grafana + InfluxDB
 # 需求：docker, docker-compose
 
 set -euo pipefail
@@ -62,9 +62,10 @@ fi
 #-----------------------------
 cecho "建立資料目錄"
 mkdir -p "$COMPOSE_DIR/grafana-data"
+mkdir -p "$COMPOSE_DIR/influxdb-data"
 chown -R 472:472 "$COMPOSE_DIR/grafana-data"
 
-cecho "從 Docker Hub 下載並部署 Grafana"
+cecho "從 Docker Hub 下載並部署 Grafana + InfluxDB"
 cd "$COMPOSE_DIR"
 $COMPOSE_CMD -f "$COMPOSE_FILE" pull
 $COMPOSE_CMD -f "$COMPOSE_FILE" up -d

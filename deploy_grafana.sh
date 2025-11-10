@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Grafana 自動部署腳本
-# 用途：在目標主機上執行此腳本，自動安裝 Docker 並部署 Grafana
+# Grafana + InfluxDB 自動部署腳本
+# 用途：在目標主機上執行此腳本，自動安裝 Docker 並部署 Grafana + InfluxDB
 
 set -euo pipefail
 
@@ -28,7 +28,7 @@ require_root() {
 #-----------------------------
 require_root
 
-cecho "開始部署 Grafana..."
+cecho "開始部署 Grafana + InfluxDB..."
 
 #-----------------------------
 # Step 2: 安裝 Docker
@@ -73,14 +73,15 @@ fi
 #-----------------------------
 # Step 4: 建立資料目錄
 #-----------------------------
-cecho "建立 Grafana 資料目錄..."
+cecho "建立資料目錄..."
 mkdir -p "$DEPLOY_DIR/grafana-data"
+mkdir -p "$DEPLOY_DIR/influxdb-data"
 chown -R 472:472 "$DEPLOY_DIR/grafana-data"
 
 #-----------------------------
-# Step 5: 部署 Grafana
+# Step 5: 部署 Grafana + InfluxDB
 #-----------------------------
-cecho "下載並啟動 Grafana..."
+cecho "下載並啟動 Grafana + InfluxDB..."
 docker compose -f docker-compose.yml pull
 docker compose -f docker-compose.yml up -d
 
@@ -91,8 +92,13 @@ cecho "=========================================="
 cecho "部署完成！ ✅"
 cecho "=========================================="
 cecho "Grafana URL: http://$(hostname -I | awk '{print $1}'):3000"
-cecho "預設帳號: admin"
-cecho "預設密碼: admin"
+cecho "  預設帳號: admin"
+cecho "  預設密碼: admin"
+cecho ""
+cecho "InfluxDB URL: http://$(hostname -I | awk '{print $1}'):8086"
+cecho "  Database: jmeter"
+cecho "  帳號: admin"
+cecho "  密碼: admin"
 cecho "=========================================="
 cecho "Docker 版本: $(docker --version)"
 cecho "Compose 版本: $(docker compose version)"
