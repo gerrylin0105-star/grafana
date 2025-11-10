@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ################################################################################
-# Grafana + InfluxDB 一鍵部署腳本
-# 用途：自動安裝 Docker 並部署 Grafana + InfluxDB
+# Grafana + InfluxDB + Prometheus 一鍵部署腳本
+# 用途：自動安裝 Docker 並部署完整監控堆疊
 # 使用：sudo ./deploy.sh
 ################################################################################
 
@@ -14,6 +14,8 @@ DEPLOY_DIR="/opt/grafana"
 GIT_REPO="https://github.com/gerrylin0105-star/grafana.git"
 GRAFANA_PORT="3000"
 INFLUXDB_PORT="8086"
+PROMETHEUS_PORT="9090"
+NODE_EXPORTER_PORT="9100"
 ADMIN_USER="admin"
 ADMIN_PASS="admin"
 INFLUXDB_DATABASE="jmeter"
@@ -36,7 +38,7 @@ require_root() {
 print_banner() {
   echo ""
   echo "╔════════════════════════════════════════════════════════════╗"
-  echo "║     Grafana + InfluxDB 自動部署腳本                        ║"
+  echo "║     Grafana + InfluxDB + Prometheus 自動部署腳本           ║"
   echo "╚════════════════════════════════════════════════════════════╝"
   echo ""
 }
@@ -120,6 +122,7 @@ fi
 cecho "Step 4: 建立資料目錄"
 mkdir -p "$DEPLOY_DIR/grafana-data"
 mkdir -p "$DEPLOY_DIR/influxdb-data"
+mkdir -p "$DEPLOY_DIR/prometheus-data"
 chown -R 472:472 "$DEPLOY_DIR/grafana-data"
 
 #-----------------------------
@@ -150,7 +153,7 @@ sleep 5
 cecho "Step 8: 驗證服務狀態"
 CONTAINER_STATUS=$(docker compose -f docker-compose.yml ps --format json 2>/dev/null || echo "[]")
 
-if docker ps | grep -q grafana && docker ps | grep -q influxdb; then
+if docker ps | grep -q grafana && docker ps | grep -q influxdb && docker ps | grep -q prometheus && docker ps | grep -q node_exporter; then
   cecho "✓ 所有服務已成功啟動"
 else
   wecho "部分服務可能未正常啟動，請檢查日誌"
@@ -178,6 +181,12 @@ echo "   URL:      http://$HOST_IP:$INFLUXDB_PORT"
 echo "   Database: $INFLUXDB_DATABASE"
 echo "   帳號:     $ADMIN_USER"
 echo "   密碼:     $ADMIN_PASS"
+echo ""
+echo "🔍 Prometheus"
+echo "   URL:      http://$HOST_IP:$PROMETHEUS_PORT"
+echo ""
+echo "📈 Node Exporter"
+echo "   URL:      http://$HOST_IP:$NODE_EXPORTER_PORT"
 echo ""
 echo "════════════════════════════════════════════════════════════"
 echo "Docker 版本:  $(docker --version)"
