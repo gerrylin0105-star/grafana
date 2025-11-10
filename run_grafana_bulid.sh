@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
-# 需求：檔案與本腳本置於同一資料夾
-# - grafana.tar.gz           # docker image 檔
-# - influxdb.tar.gz           # docker image 檔
-# - 內有 docker-compose.yml
+# 自動從 Docker Hub 下載並部署 Grafana + InfluxDB
+# 需求：docker, docker-compose
 
 set -euo pipefail
 
 #-----------------------------
 # 基本參數（必要時可修改）
 #-----------------------------
-GRAFANA_IMG="grafana.tar.gz"
-INFLUXDB_IMG="influxdb.tar.gz"
-COMPOSE_DIR=${5:-/opt/grafana}  # 輸出目錄（可自訂）
+COMPOSE_DIR=${1:-/opt/grafana}  # 部署目錄（可自訂）
 COMPOSE_FILE="$COMPOSE_DIR/docker-compose.yml"
 
 # RMI/部署等後續腳本若需環境變數，可在此補上
@@ -36,12 +32,6 @@ require_root() {
 #-----------------------------
 require_root
 
-for f in "$GRAFANA_IMG" "$INFLUXDB_IMG"; do
-  if [[ ! -f "$f" ]]; then
-    wecho "警告：找不到檔案 $f（若某步驟不需要，可忽略）。"
-  fi
-done
-
 # 讀取系統資訊
 OS_ID="$(. /etc/os-release; echo "${ID:-unknown}")"
 OS_VER="$(. /etc/os-release; echo "${VERSION_ID:-unknown}")"
@@ -49,40 +39,9 @@ KERNEL="$(uname -r)"
 cecho "系統：$OS_ID $OS_VER（kernel $KERNEL）"
 
 #-----------------------------
-# Step 1：載入 Docker Image (Grafana + InfluxDB)
+# Step 1：檢查 Docker
 #-----------------------------
-if [[ -f "$GRAFANA_IMG" ]]; then
-  cecho "Step 1：載入 Grafana Image（$GRAFANA_IMG）"
-  if ! command -v docker >/dev/null 2>&1; then
-    eecho "找不到 docker 指令，請先完成。"
-    exit 1
-  fi
-  docker load -i "$GRAFANA_IMG"
-  cecho "目前 grafana 相關 images："
-  docker images | awk 'NR==1 || /jmeter|slave|load|perf|perfsonar|apache/'
-else
-  wecho "略過 Step 1：$GRAFANA_IMG 不存在。"
-fi
-
-##################
-
-if [[ -f "$INFLUXDB_IMG" ]]; then
-  cecho "Step 1：載入 Influxdb Image（$INFLUXDB_IMG）"
-  if ! command -v docker >/dev/null 2>&1; then
-    eecho "找不到 docker 指令，請先完成。"
-    exit 1
-  fi
-  docker load -i "$INFLUXDB_IMG"
-  cecho "目前 influxdb 相關 images："
-  docker images | awk 'NR==1 || /jmeter|slave|load|perf|perfsonar|apache/'
-else
-  wecho "略過 Step 1：$INFLUXDB_IMG 不存在。"
-fi
-
-
-#-----------------------------
-# Step 2：部署 Grafana
-#-----------------------------
+cecho "Step 1：檢查 Docker 環境"
 
 # ---------- 前置檢查 ----------
 if ! command -v docker >/dev/null 2>&1; then
@@ -102,11 +61,17 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   eecho "找不到 docker-compose.yml（預期路徑：$COMPOSE_FILE）"; exit 1
 fi
 
-# ---------- 部署 ----------
-cecho "開始部署 Grafana + InfluxDB…"
-$COMPOSE_CMD -p grafan -f "$COMPOSE_FILE" up -d
+# ---------- 建立資料目錄 ----------
+cecho "Step 2：建立資料目錄"
+mkdir -p "$COMPOSE_DIR/grafana-data"
+mkdir -p "$COMPOSE_DIR/influxdb-data"
+chown -R 472:472 "$COMPOSE_DIR/grafana-data"
 
-chown 472:472 /opt/grafana/grafana-data
+# ---------- 下載並部署 ----------
+cecho "Step 3：從 Docker Hub 下載並部署 Grafana + InfluxDB…"
+cd "$COMPOSE_DIR"
+$COMPOSE_CMD -p grafana -f "$COMPOSE_FILE" pull
+$COMPOSE_CMD -p grafana -f "$COMPOSE_FILE" up -d
 
 #-----------------------------
 # 收尾與摘要
